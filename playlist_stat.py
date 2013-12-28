@@ -14,15 +14,17 @@ def readXls(directory, database, recursive=False):
     engine = create_engine(database, echo=True)
     Session = sessionmaker(bind=engine)
     session = Session()
+
+    # TODO: check if tables already exist
+    Base.metadata.create_all(engine)
     
-    #xls = [ f for f in listdir(directory) if isfile(join(directory,f)) ]
     for fileName in listdir(directory):
         # open file
         fileName = join(directory, fileName)
         
         if isfile(fileName) and \
             (fileName.endswith('.xls') or fileName.endswith('.xlsx')):
-            # extract date, show info
+            # extract show info
             readXlsFile(fileName, session)                
     
 
@@ -35,36 +37,83 @@ def readXlsFile(fileName, session):
         wb = xlrd.open_workbook(file_contents=f.read())
         s = wb.sheets()[0]
 
-        readShowHistory(s)
-        
-##	print 'Sheet:',s.name
-##	for row in range(s.nrows):
-##	    values = []
-##	    print '\t'.join(chr(i + 97) for i in range(s.ncols))
-##	    for col in range(s.ncols):                
-##		values.append(unicode(s.cell(row,col).value))
-##	    try: print str(row) + ": " + '\t'.join(values)
-##	    except: pass
-##	print
+        readShowHistory(s, session)
 
+    for show in session.query(Show):
+        print show.id, show.name, show.dj
+
+    for artist in session.query(Artist):
+        print artist.id, artist.name, artist.isCancon
 
 def readShowHistory(sheet, db):
     # get show from database or create
-    dj = sheet.cell(2,2).value
+    djName = sheet.cell(2,2).value
     showName = sheet.cell(3,2).value
-    date = dateutil.parser.parse(sheet.cell(2,8).value)
-    time = sheet.cell(3,8).value
+    showDate = dateutil.parser.parse(sheet.cell(2,8).value)
+    showTime = sheet.cell(3,8).value
 
-    print dj, showName, date, time
-    
+    show = db.query(Show).filter(Show.dj.like(djName), Show.name.like(showName)).first()
+    if (show == None):
+        
+        show = Show(showName, djName)
+        db.add(show)
+
+    print show.id, show.name, show.dj, showDate, showTime
+
     # create new show history
-    # check for existing show record on same date
+    # TODO: check for existing show record on same date
+    showHistory = ShowHistory(showDate, showTime, show)
 
     # for each row in playlist area
-        # get artist / album / track or create
-        # create new track history
+    for row in range(11, sheet.nrows):
+        
+        artistName = sheet.cell(row, 1).value
+        albumName = sheet.cell(row, 3).value
+        
+        trackName = sheet.cell(row, 2).value      
+        trackDuration = sheet.cell(row, 4)
+        
+        playOrder = sheet.cell(row, 0)
+        playTime = sheet.cell(row, 5)
+        
+        logCategory = sheet.cell(row, 6)
+        try:
+            logCategory = int(logCategory.value)
+        except ValueError: pass
+        
+        isCancon = sheet.cell(row, 7)
+        isHit = sheet.cell(row, 8)
+        isChart = sheet.cell(row, 9)
+        chartCategory = sheet.cell(row, 10)
+
+        ordinal = 1
+
+        if (logCategory > 20 and logCategory < 50 # this is a song, not talk or ad content
+            and playOrder.ctype==xlrd.XL_CELL_NUMBER # have not yet reached the end of the playlist
+            and artistName != "" and trackName != "" # and there is at least artist and track data
+            ):
+
+            print playOrder.value, artistName.value, albumName.value, trackTitle.value
+
+            # get or create artist / album / track
+            artist = db.query(Artist).filter(Artist.name.like(artistName)).first()
+            if (artist == None):
+                artist = Artist(artistName, "", "", isCancon != "")
+
+            album = db.query(Album).filter(Album.name.like(albumName) and Album.artist == artist).first()
+            if (album == None):
+                album = Album(albumName, artist)
+
+            track = db.query(Track).filter(Track.name.like(trackName) and Track.album == album).first()
+            if (track == None):
+                track = Track(trackName, album)
+
+            # create new play history
+            playHistory = PlayHistory(showHistory, track, ordinal)
+            ordinal += 1
 
     # save all
+    db.add(showHistory)    
 
 # create database
 

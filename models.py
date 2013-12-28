@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Boolean, Date, ForeignKey
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -23,13 +24,15 @@ class Album(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    artistID = Column(Integer, ForeignKey('artist.id'))
-    albumDate = Column(Date)
+    albumDate = Column(Date, nullable=True)
     isCompilation = Column(Boolean)
 
-    def __init__(self, name, artistID, date, isCompilation=False):
+    artist_id = Column(Integer, ForeignKey('artist.id'))
+    artist = relationship("artist", backref = backref("albums", order_by=id))
+
+    def __init__(self, name, artist, date=None, isCompilation=False):
         self.name = name
-        self.artistID = artistID
+        self.artist = artist
         self.albumDate = date
         self.isCompilation = isCompilation
 
@@ -38,15 +41,16 @@ class Track(Base):
     __tablename__ = 'track'
 
     id = Column(Integer, primary_key=True)
-    albumID = Column(Integer, ForeignKey('album.id'))
     name = Column(String)
     trackNo = Column(Integer)
 
-    def __init__(self, name, trackNo, albumID, albumArtist=None):
+    album_id = Column(Integer, ForeignKey('album.id'))
+    album = relationship("album", backref = backref("tracks", order_by=trackNo))
+
+    def __init__(self, name, album, trackNo=0):
         self.name = name
         self.trackNo = trackNo
-        self.albumID = albumID
-        self.albumArtist = albumArtist
+        self.album = album
 
 
 class Show(Base):
@@ -66,21 +70,29 @@ class ShowHistory(Base):
     id = Column(Integer, primary_key=True)
     date = Column(Date)
     showID = Column(Integer, ForeignKey('show.id'))
+    time = Column(String)
 
-    def __init__(self, date, showID):
+    show = relationship("show", backref = backref("history", order_by=date))
+
+    def __init__(self, date, time, show):
         self.date = date
-        self.showID = showID
+        self.show = show
+        self.time = time
     
 
 class PlayHistory(Base):
     __tablename__ = 'playHistory'
 
     id = Column(Integer, primary_key=True)
-    trackID = Column(Integer, ForeignKey('track.id'))
-    showHistoryID = Column(Integer, ForeignKey('showHistory.id'))
     ordinal = Column(Integer)
 
-    def __init__(self, trackID, showHistoryID, ordinal):
-        self.track = trackID
-        self.showHistoryID = showHistoryID
+    showHistoryID = Column(Integer, ForeignKey('showHistory.id'))
+    showHistory = relationship("showHistory", backref = backref("playlist", order_by=ordinal))
+
+    trackID = Column(Integer, ForeignKey('track.id'))
+    track = relationship("track", backref = backref("history", order_by=id))
+
+    def __init__(self, showHistory, track, ordinal):
+        self.track = track
+        self.showHistory = showHistory
         self.ordinal = ordinal
