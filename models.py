@@ -28,7 +28,7 @@ class Album(Base):
     isCompilation = Column(Boolean)
 
     artist_id = Column(Integer, ForeignKey('artist.id'))
-    artist = relationship("artist", backref = backref("albums", order_by=id))
+    artist = relationship("Artist", backref = backref("albums", order_by=id))
 
     def __init__(self, name, artist, date=None, isCompilation=False):
         self.name = name
@@ -45,12 +45,15 @@ class Track(Base):
     trackNo = Column(Integer)
 
     album_id = Column(Integer, ForeignKey('album.id'))
-    album = relationship("album", backref = backref("tracks", order_by=trackNo))
+    album = relationship("Album", backref = backref("tracks", order_by=trackNo))
 
     def __init__(self, name, album, trackNo=0):
         self.name = name
         self.trackNo = trackNo
         self.album = album
+
+    def __repr__(self):
+        return self.name
 
 
 class Show(Base):
@@ -68,11 +71,11 @@ class ShowHistory(Base):
     __tablename__ = 'showHistory'
 
     id = Column(Integer, primary_key=True)
-    date = Column(Date)
-    showID = Column(Integer, ForeignKey('show.id'))
+    date = Column(Date)    
     time = Column(String)
 
-    show = relationship("show", backref = backref("history", order_by=date))
+    show_id = Column(Integer, ForeignKey('show.id'))
+    show = relationship("Show", backref = backref("history", order_by=date))
 
     def __init__(self, date, time, show):
         self.date = date
@@ -86,11 +89,11 @@ class PlayHistory(Base):
     id = Column(Integer, primary_key=True)
     ordinal = Column(Integer)
 
-    showHistoryID = Column(Integer, ForeignKey('showHistory.id'))
-    showHistory = relationship("showHistory", backref = backref("playlist", order_by=ordinal))
+    showHistory_id = Column(Integer, ForeignKey('showHistory.id'))
+    showHistory = relationship("ShowHistory", backref = backref("playlist", order_by=ordinal))
 
-    trackID = Column(Integer, ForeignKey('track.id'))
-    track = relationship("track", backref = backref("history", order_by=id))
+    track_id = Column(Integer, ForeignKey('track.id'))
+    track = relationship("Track", backref = backref("history", order_by=id))
 
     def __init__(self, showHistory, track, ordinal):
         self.track = track
